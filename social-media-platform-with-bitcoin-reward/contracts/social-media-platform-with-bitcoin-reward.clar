@@ -96,3 +96,96 @@
     (ok true)
   )
 )
+
+;; Content Creation
+(define-public (create-content
+  (content-type (string-ascii 20))
+  (content-hash (string-ascii 64))
+  (description (string-ascii 200))
+  (tags (list 5 (string-ascii 20)))
+)
+  (let 
+    (
+      (content-id (var-get total-reward-pool))
+      (user-profile (unwrap! (map-get? user-profiles tx-sender) ERR-PROFILE-NOT-FOUND))
+    )
+    
+    ;; Create content registry entry
+    (map-set content-registry 
+      content-id 
+      {
+        content-id: content-id,
+        creator: tx-sender,
+        content-type: content-type,
+        content-hash: content-hash,
+        description: description,
+        timestamp: stacks-block-height,
+        engagement: {
+          likes: u0,
+          comments: u0,
+          shares: u0,
+          views: u0
+        },
+        rewards-distributed: false,
+        tags: tags
+      }
+    )
+    
+    ;; Update user content index
+    (let 
+      ((current-content-list (default-to (list) (map-get? user-content-index tx-sender))))
+      (map-set user-content-index 
+        tx-sender 
+        (unwrap! (as-max-len? (append current-content-list content-id) u100) ERR-NOT-AUTHORIZED)
+      )
+    )
+    
+    ;; Increment total reward pool and content ID
+    (var-set total-reward-pool (+ (var-get total-reward-pool) u1))
+    
+    (ok content-id)
+  )
+)
+
+;; Engagement Mechanism
+(define-public (engage-content
+  (content-id uint)
+  (engagement-type (string-ascii 20))
+)
+  (let 
+    (
+      (content (unwrap! (map-get? content-registry content-id) ERR-CONTENT-NOT-FOUND))
+      (current-engagement (get engagement content))
+    )
+    
+    ;; Record engagement
+    (map-set content-engagement 
+      {content-id: content-id, user: tx-sender}
+      {
+        engagement-type: engagement-type,
+        timestamp: stacks-block-height
+      }
+    )
+    
+    ;; Update content engagement metrics
+    (map-set content-registry 
+      content-id 
+      (merge content 
+        {
+          engagement: 
+            (if (is-eq engagement-type "like")
+              (merge current-engagement {likes: (+ (get likes current-engagement) u1)})
+            (if (is-eq engagement-type "comment")
+              (merge current-engagement {comments: (+ (get comments current-engagement) u1)})
+            (if (is-eq engagement-type "share")
+              (merge current-engagement {shares: (+ (get shares current-engagement) u1)})
+              current-engagement
+            ))
+          )
+        }
+      )
+    )
+    
+    (ok true)
+  )
+)
