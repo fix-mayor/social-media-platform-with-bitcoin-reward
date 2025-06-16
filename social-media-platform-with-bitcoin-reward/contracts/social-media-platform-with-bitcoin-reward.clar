@@ -50,3 +50,49 @@
   }
 )
 
+;; User Content Tracking
+(define-map user-content-index
+  principal
+  (list 100 uint)
+)
+
+;; Engagement Tracking
+(define-map content-engagement
+  {content-id: uint, user: principal}
+  {
+    engagement-type: (string-ascii 20),
+    timestamp: uint
+  }
+)
+
+;; Reward Pool Management
+(define-data-var total-reward-pool uint u10000)
+(define-data-var platform-fee uint u5)
+
+;; User Profile Creation
+(define-public (create-profile 
+  (username (string-ascii 50))
+  (bio (string-ascii 200))
+  (profile-image-hash (string-ascii 64))
+)
+  (begin
+    (asserts! (is-none (map-get? user-profiles tx-sender)) ERR-PROFILE-EXISTS)
+    
+    (map-set user-profiles 
+      tx-sender 
+      {
+        username: username,
+        bio: bio,
+        profile-image-hash: profile-image-hash,
+        reputation-score: u0,
+        total-contributions: u0,
+        verified-status: false,
+        followers: u0,
+        following: u0,
+        joined-at: stacks-block-height
+      }
+    )
+    
+    (ok true)
+  )
+)
