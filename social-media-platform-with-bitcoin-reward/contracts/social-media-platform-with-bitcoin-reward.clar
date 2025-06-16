@@ -189,3 +189,58 @@
     (ok true)
   )
 )
+
+;; Reward Distribution
+(define-public (distribute-rewards (content-id uint))
+  (let 
+    (
+      (content (unwrap! (map-get? content-registry content-id) ERR-CONTENT-NOT-FOUND))
+      (creator (get creator content))
+      (engagement (get engagement content))
+      (total-engagement (+ 
+        (get likes engagement) 
+        (get comments engagement) 
+        (get shares engagement)
+      ))
+      (reward (* total-engagement REWARD-MULTIPLIER))
+    )
+    
+    ;; Check if already rewarded
+    (asserts! (not (get rewards-distributed content)) ERR-ALREADY-REWARDED)
+    
+    ;; Update content reward status
+    (map-set content-registry 
+      content-id 
+      (merge content {rewards-distributed: true})
+    )
+    
+    ;; Implement Bitcoin reward transfer logic here
+    ;; This would typically involve calling an external contract or service
+    
+    (ok reward)
+  )
+)
+
+;; Governance Functions
+(define-public (update-platform-fee (new-fee uint))
+  (begin
+    (asserts! (is-eq tx-sender PLATFORM-OWNER) ERR-NOT-AUTHORIZED)
+    (var-set platform-fee new-fee)
+    (ok true)
+  )
+)
+
+;; Read-Only Functions
+(define-read-only (get-user-profile (user principal))
+  (map-get? user-profiles user)
+)
+
+(define-read-only (get-content (content-id uint))
+  (map-get? content-registry content-id)
+)
+
+;; New Error Constants
+(define-constant ERR-ALREADY-FOLLOWING (err u7))
+(define-constant ERR-NOT-FOLLOWING (err u8))
+(define-constant ERR-INVALID-REPORT (err u9))
+(define-constant ERR-TRANSFER-FAILED (err u10))
